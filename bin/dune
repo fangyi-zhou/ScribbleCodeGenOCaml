@@ -1,0 +1,4 @@
+(executable
+ (public_name ScribbleCodeGen)
+ (name main)
+ (libraries ScribbleCodeGen))
