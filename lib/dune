@@ -1,2 +1,3 @@
 (library
- (name ScribbleCodeGen))
+ (name ScribbleCodeGen)
+ (libraries base stdio))
