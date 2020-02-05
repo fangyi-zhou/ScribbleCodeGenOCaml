@@ -32,7 +32,8 @@ let parse content : graphData =
           Map.add_exn edges ~key:(unnode nid1, unnode nid2) ~data:[attr]
         in
         {g with edges}
-    | _ -> failwith "Not supported"
+    | _ -> g
+    (* | _ -> failwith "Not supported" *)
   in
   List.fold ~f
     ~init:

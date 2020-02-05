@@ -22,10 +22,9 @@ let rec cutAssertion assertion =
 let addTransition (transitions : transitionMap) (transition : transition) :
     transitionMap =
   let from = transition.fromState in
-  match Map.find transitions from with
-  | Some oldTransitions ->
-      Map.add_exn transitions ~key:from ~data:(transition :: oldTransitions)
-  | None -> Map.add_exn transitions ~key:from ~data:[transition]
+  Map.update transitions from ~f:(function
+    | Some oldTransitions -> transition :: oldTransitions
+    | None -> [transition])
 
 let parseAssertionAndChunk assertion =
   if String.equal assertion "" then []
@@ -54,6 +53,7 @@ let parseTransition fromState toState label : transition =
 
 let convertEdge ~key:((fromState, toState) : SS.t) ~(data : attributes list)
     (transitions : transitionMap) =
+  (* printf "Adding (%s, %s)\n" fromState toState ; *)
   let attributes = data in
   let processAttribute transitions attribute =
     let fromState = Int.of_string fromState in
