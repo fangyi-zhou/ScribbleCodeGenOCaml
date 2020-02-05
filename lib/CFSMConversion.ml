@@ -4,12 +4,7 @@ open Types
 
 type attributes = string smap
 
-type graphData =
-  { nodes: attributes smap
-  ; edges: attributes list ssmap
-  ; graphAttributes: attributes
-  ; nodeAttributes: attributes
-  ; edgeAttributes: attributes }
+type graphData = {nodes: attributes smap; edges: attributes list ssmap}
 
 let newSyntax = ref false
 

@@ -8,5 +8,6 @@
  (depends
    base
    stdio
-   menhir)
+   menhir
+   ocamlgraph)
 )
