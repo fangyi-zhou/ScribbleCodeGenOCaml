@@ -1,4 +1,4 @@
 (executable
  (public_name ScribbleCodeGen)
  (name main)
- (libraries ScribbleCodeGen))
+ (libraries ScribbleCodeGen stdio))
