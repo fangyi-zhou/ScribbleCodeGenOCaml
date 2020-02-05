@@ -49,9 +49,6 @@ let () =
     if !protocol = "" then err "Error: Protocol not set" ;
     if !role = "" then err "Error: Role not set" ;
     if filename = "" then err "Error: File not set" ;
-    let file = In_channel.create filename in
-    let content = In_channel.input_all file in
-    In_channel.close file ;
-    Lib.processScribbleOutput content !protocol !role !mode !recursion
+    Lib.processScribbleOutput filename !protocol !role !mode !recursion
   in
   Arg.parse speclist run usage
