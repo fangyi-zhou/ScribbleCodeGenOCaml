@@ -10,9 +10,11 @@ let moduleName = ref "ScribbleGenerated"
 
 let fileName = ref "ScribbleGenerated.fs"
 
-let indent fmt = pp_open_box fmt 2
+(*TODO*)
+let indent _ = ()
 
-let unindent fmt = pp_close_box fmt ()
+(*TODO*)
+let unindent _ = ()
 
 let writeln fmt (str : string) =
   pp_print_string fmt str ; pp_print_newline fmt ()
