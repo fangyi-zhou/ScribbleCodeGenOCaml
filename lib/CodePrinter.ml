@@ -76,14 +76,15 @@ let writeRecord writer isFirst name record =
   if List.is_empty record then
     (* F# doesn't allow empty record *)
     writeTypeDefPreamble writer isFirst name " = unit"
-  else writeTypeDefPreamble writer isFirst name " = {" ;
-  indent writer ;
-  (* FIXME: Hack *)
-  if Poly.(!codeGenMode = FStar) && String.is_prefix name ~prefix:"state"
-  then fprintf writer "_dum%s : unit;\n" name ;
-  List.iter ~f:(writeRecordItem writer) record ;
-  unindent writer ;
-  writeln writer "}"
+  else (
+    writeTypeDefPreamble writer isFirst name " = {" ;
+    indent writer ;
+    (* FIXME: Hack *)
+    if Poly.(!codeGenMode = FStar) && String.is_prefix name ~prefix:"state"
+    then fprintf writer "_dum%s : unit;\n" name ;
+    List.iter ~f:(writeRecordItem writer) record ;
+    unindent writer ;
+    writeln writer "}" )
 
 let writeTypeDef writer isFirst (name, typeDef) =
   match typeDef with
@@ -138,18 +139,21 @@ let assembleState writer stateVarMap recVarMap state var stateTy prevStateTy
     | None -> None
   in
   let vars = Map.find_exn stateVarMap state |> fst |> List.map ~f:fst in
-  if List.is_empty vars then fprintf writer "()\n" else fprintf writer "{\n" ;
-  indent writer ;
-  if Poly.(!codeGenMode = FStar) then fprintf writer "_dum%s = ();\n" stateTy ;
-  let getVar v =
-    match v with
-    | v when String.equal v var -> v
-    | v when Map.mem recExprs v -> Map.find_exn recExprs v
-    | v -> Option.value ~default:(fieldGet v prevStateTy) (getInitExpr v)
-  in
-  List.iter ~f:(fun v -> fprintf writer "%s = %s;\n" v (getVar v)) vars ;
-  unindent writer ;
-  fprintf writer "}\n"
+  if List.is_empty vars then fprintf writer "()\n"
+  else (
+    fprintf writer "{\n" ;
+    indent writer ;
+    if Poly.(!codeGenMode = FStar) then
+      fprintf writer "_dum%s = ();\n" stateTy ;
+    let getVar v =
+      match v with
+      | v when String.equal v var -> v
+      | v when Map.mem recExprs v -> Map.find_exn recExprs v
+      | v -> Option.value ~default:(fieldGet v prevStateTy) (getInitExpr v)
+    in
+    List.iter ~f:(fun v -> fprintf writer "%s = %s;\n" v (getVar v)) vars ;
+    unindent writer ;
+    fprintf writer "}\n" )
 
 let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
   let in_ = if Poly.(!codeGenMode = FStar) then " in" else "" in
@@ -319,8 +323,8 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
             unindent writer
         | _ -> failwith "TODO"
   in
-  if Poly.(!codeGenMode = EventApi) then unindent writer ;
-  fprintf writer "}\n" ;
+  if Poly.(!codeGenMode = EventApi) then (
+    unindent writer ; fprintf writer "}\n" ) ;
   unindent writer ;
   false
 
