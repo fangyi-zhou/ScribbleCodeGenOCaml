@@ -398,7 +398,7 @@ let generateCode (cfsm : cfsm) protocol localRole =
         (*TODO*)
         fprintf writer
           "let run (callbacks : callbacks%s) (comms : communications) : ML \
-           unit ="
+           unit =\n"
           localRole ;
         generateRuntimeCode writer cfsm stateVarMap
   in
