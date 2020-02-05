@@ -48,7 +48,7 @@ let allRoles ((_, _, transitions, _) : cfsm) =
 let allStates ((_, _, v, _) : cfsm) : state list =
   v |> Map.to_alist ~key_order:`Increasing |> List.map ~f:fst
 
-let isDummy (x : string) = String.is_prefix x ~prefix:" "
+let isDummy (x : string) = String.is_prefix x ~prefix:"_"
 
 let convertAction action =
   match action with
