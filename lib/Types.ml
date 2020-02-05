@@ -56,7 +56,7 @@ type role = string
 
 type label = string
 
-type state = int
+type state = Int.t
 
 type assertion = term list
 
