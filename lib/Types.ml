@@ -11,20 +11,20 @@ type term =
   | Anno of term * ty
   | Coerce of term * ty
   | Let of variable * term * term
-  | Unknownterm of string * ty
+  | UnknownTerm of string * ty
   | NewRecord of term list * string
   | FieldGet of term * string
   | Tuple of term list
   | Diverge
 
 and ty =
-  | Basetype of basety * term
-  | Functype of variable * ty * (* of argument *) ty
+  | BaseType of basety * term
+  | FuncType of variable * ty * (* of argument *) ty
   (* of result *)
-  | Unknowntype of string
-  | Recordtype of string
-  | Uniontype of string
-  | Producttype of ty list
+  | UnknownType of string
+  | RecordType of string
+  | UnionType of string
+  | ProductType of ty list
 
 and basety = TBool | TInt
 
