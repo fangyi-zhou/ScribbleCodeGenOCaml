@@ -3,8 +3,6 @@ open Stdio
 open Printf
 open Types
 
-type 'a seq = 'a Sequence.t
-
 let isVariable x = Char.is_alpha x || Char.is_digit x || Char.equal x '_'
 
 let span f xs = (Sequence.take_while ~f xs, Sequence.drop_while ~f xs)

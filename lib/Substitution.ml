@@ -2,8 +2,7 @@ open! Base
 open Types
 open Printf
 
-let find_replacement_var (v : variable) (excludes : FreeVar.vset) : variable
-    =
+let find_replacement_var (v : variable) (excludes : vset) : variable =
   let rec aux i =
     let var = sprintf "%s_%d" v i in
     if Set.mem excludes var then aux (i + 1) else var

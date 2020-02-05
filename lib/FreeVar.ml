@@ -1,8 +1,6 @@
 open! Base
 open Types
 
-type vset = Set.M(String).t
-
 let special_this = "$this"
 
 let rec free_var_term (term : term) : vset =

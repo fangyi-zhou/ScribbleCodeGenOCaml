@@ -92,3 +92,26 @@ type cfsm =
 type refinement = string
 
 type stateVariableMap = ((variable * vartype) list * assertion) stateMap
+
+type vset = Set.M(String).t
+
+type 'a seq = 'a Sequence.t
+
+module SS = struct
+  module M = struct
+    type t = string * string
+
+    let compare (s11, s12) (s21, s22) =
+      let cmp1 = String.compare s11 s21 in
+      if cmp1 = 0 then String.compare s12 s22 else cmp1
+
+    let sexp_of_t (s1, s2) = sexp_of_list sexp_of_string [s1; s2]
+  end
+
+  include M
+  include Comparator.Make (M)
+end
+
+type 'a smap = 'a Map.M(String).t
+
+type 'a ssmap = 'a Map.M(SS).t
