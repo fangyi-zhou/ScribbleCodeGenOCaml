@@ -11,3 +11,4 @@
    menhir
    ocamlgraph)
 )
+(using menhir 2.0)

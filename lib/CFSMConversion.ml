@@ -10,7 +10,9 @@ let newSyntax = ref false
 
 let newTransitionMap = Map.empty
 
-let parse_term _ = assert false
+let parse_term input =
+  let lexbuf = Lexing.from_string input in
+  ExprParser.expr ExprLexer.token lexbuf
 
 let rec cutAssertion assertion =
   match assertion with

@@ -1,0 +1,75 @@
+%{
+  open Types
+  open Utils
+
+  let conv_this (var: variable) (term : term) : term =
+    Substitution.alpha_conv_term var special_this term
+%}
+
+%start expr
+%start ty
+%token <string> ID
+%token <int> INT
+%token LPAREN RPAREN
+%token LBRACE RBRACE
+%token COLON RIGHTARROW BAR
+%token PLUS MINUS
+%token AND OR
+%token EQUAL GREATER LESS GREATEREQUAL LESSEQUAL NOTEQUAL
+%token DOLLAR
+%token NOT
+%token TRUE FALSE
+%token EOF
+%type < Types.term > expr
+%type < Types.ty > ty
+%left AND OR
+%left PLUS MINUS
+%right RIGHTARROW
+%nonassoc EQUAL GREATER LESS GREATEREQUAL NOTEQUAL LESSEQUAL
+
+%%
+expr:
+    | expr0 EOF { $1 }
+
+expr0:
+    | expr0 AND expr0 { mk_binop_app And $1 $3 }
+    | expr0 OR expr0  { mk_binop_app Or $1 $3 }
+    | expr1           { $1 }
+
+expr1:
+    | NOT expr1           { mk_not $2 }
+    | expr1 EQUAL expr1   { mk_binop_app EqualInt $1 $3 }
+    | expr1 GREATER expr1 { mk_binop_app Greater $1 $3 }
+    | expr1 LESS expr1    { mk_binop_app Less $1 $3 }
+    | expr1 GREATEREQUAL expr1 { mk_binop_app GreaterEqual $1 $3 }
+    | expr1 LESSEQUAL expr1    { mk_binop_app LessEqual $1 $3 }
+    | expr1 NOTEQUAL expr1     { mk_binop_app NotEqualInt $1 $3 }
+    | expr2               { $1 }
+
+expr2:
+    | expr2 PLUS expr2    { mk_binop_app Plus $1 $3 }
+    | expr2 MINUS expr2   { mk_binop_app Minus $1 $3 }
+    | expr3               { $1 }
+
+expr3:
+    | expr3 DOLLAR ID     { FieldGet($1, $3) }
+    | expr4               { $1 }
+
+expr4:
+    | expr4 expr5 { App($1, $2) }
+    | expr5       { $1 }
+
+expr5:
+    | ID                  { Var $1 }
+    | LPAREN expr0 RPAREN { $2 }
+    | INT                 { Const (IntLiteral $1) }
+    | TRUE                { Const (BoolLiteral true) }
+    | FALSE               { Const (BoolLiteral false) }
+
+ty:
+    | ty0 EOF { $1 }
+
+ty0:
+    | LPAREN ID COLON ty0 RPAREN RIGHTARROW ty0 { FuncType ($2, $4, $7) }
+    | LBRACE ID COLON ID BAR expr0 RBRACE       { BaseType (read_basetype $4, conv_this $2 $6)}
+    | ID                                        { UnknownType ($1) }

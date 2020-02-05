@@ -1,3 +1,9 @@
 (library
  (name ScribbleCodeGen)
  (libraries base stdio ocamlgraph))
+
+(ocamllex
+ (modules ExprLexer))
+
+(menhir
+ (modules ExprParser))
