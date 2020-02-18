@@ -57,22 +57,12 @@ let writeUnion writer isFirst name union =
   unindent writer
 
 let writeRecordItem writer (field, fieldType, refinement) =
-  match !codeGenMode with
-  | FStar ->
-      let refinedType =
-        match refinement with
-        | Some refinement ->
-            sprintf "(%s : %s{%s})" field fieldType refinement
-        | None -> fieldType
-      in
-      fprintf writer "%s : %s;\n" field refinedType
-  | _ ->
-      let refinementAttribute =
-        match refinement with
-        | Some refinement -> sprintf "[<Refined(\"%s\")>] " refinement
-        | None -> ""
-      in
-      fprintf writer "%s%s : %s\n" refinementAttribute field fieldType
+  let refinedType =
+    match refinement with
+    | Some refinement -> sprintf "(%s : %s{%s})" field fieldType refinement
+    | None -> fieldType
+  in
+  fprintf writer "%s : %s;\n" field refinedType
 
 let writeRecord writer isFirst name record =
   if List.is_empty record then
@@ -101,12 +91,8 @@ let writeContents writer (content : content) =
       writeTypeDef writer true first ;
       List.iter ~f:(writeTypeDef writer false) rest
 
-let generatePreamble writer moduleName protocol localRole =
-  let moduleName =
-    match !codeGenMode with
-    | FStar -> Caml.Filename.remove_extension !fileName
-    | _ -> sprintf "%s%s%s" moduleName protocol localRole
-  in
+let generatePreamble writer _moduleName _protocol _localRole =
+  let moduleName = Caml.Filename.remove_extension !fileName in
   fprintf writer "module %s\n" moduleName ;
   writeln writer "(* This file is GENERATED, do not modify manually *)" ;
   if Poly.(!codeGenMode <> FStar) then
@@ -163,11 +149,13 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
     if Poly.(!codeGenMode = FStar) then writeln writer "in"
   in
   let semi_ = if Poly.(!codeGenMode = FStar) then ";" else "" in
-  let bang = if Poly.(!codeGenMode = EventApi) then "!" else "" in
-  let doBang = if Poly.(!codeGenMode = EventApi) then "do! " else "" in
-  let returnBang =
-    if Poly.(!codeGenMode = EventApi) then "return! " else ""
-  in
+  (* let bang = if Poly.(!codeGenMode = EventApi) then "!" else "" in let
+     doBang = if Poly.(!codeGenMode = EventApi) then "do! " else "" in let
+     returnBang = if Poly.(!codeGenMode = EventApi) then "return! " else ""
+     in *)
+  let bang = "" in
+  let doBang = "" in
+  let returnBang = "" in
   let stateTy = if Poly.(!codeGenMode = FStar) then "state" else "State" in
   let _, finalStates, transitions, recVarMap = cfsm in
   let functionName = sprintf "runState%d" state in
@@ -178,10 +166,8 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
       (if Poly.(!codeGenMode = FStar) then "ML unit" else "Async<unit>")
   in
   indent writer ;
-  let () =
-    if Poly.(!codeGenMode = EventApi) then writeln writer "async {" ;
-    indent writer
-  in
+  (* let () = if Poly.(!codeGenMode = EventApi) then writeln writer "async {"
+     ; indent writer in *)
   let generateForTransition t prevStateName =
     match t with
     | { action= a
@@ -219,7 +205,7 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
                     let varMap = Map.find_exn stateVarMap state in
                     let _, payload =
                       CFSMAnalysis.attachRefinements t.assertion varMap p
-                        (Some binder) !codeGenMode
+                        (Some binder)
                     in
                     match payload with
                     | [(_, _, Some r)] -> fprintf writer "assume (%s);\n" r
@@ -243,10 +229,7 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
           in
           let bindVar v =
             if String.equal v var then Var var
-            else
-              match !codeGenMode with
-              | FStar -> App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
-              | _ -> Var (sprintf "st.%s" v)
+            else App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
           in
           let stateVars =
             Map.find_exn stateVarMap state |> fst |> List.map ~f:fst
@@ -325,10 +308,9 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
             unindent writer
         | _ -> failwith "TODO"
   in
-  if Poly.(!codeGenMode = EventApi) then (
-    unindent writer ; fprintf writer "}\n" ) ;
-  unindent writer ;
-  false
+  (* if Poly.(!codeGenMode = EventApi) then ( unindent writer ; fprintf
+     writer "}\n" ) ; *)
+  unindent writer ; false
 
 let generateRuntimeCode writer (cfsm : cfsm) stateVarMap =
   let initState, _, _, recVarMap = cfsm in
@@ -385,15 +367,10 @@ let generateCode (cfsm : cfsm) protocol localRole =
   writeCommunicationDef writer ;
   let () =
     match !codeGenMode with
-    | LegacyApi ->
-        let init, _, _, _ = cfsm in
-        fprintf writer "let init = %s\n" (mkStateName init)
-    | EventApi ->
-        fprintf writer
-          "let run (callbacks : Callbacks%s) (comms : Communications) : \
-           Async<unit> =\n"
-          localRole ;
-        generateRuntimeCode writer cfsm stateVarMap
+    (* | LegacyApi -> let init, _, _, _ = cfsm in fprintf writer "let init =
+       %s\n" (mkStateName init) | EventApi -> fprintf writer "let run
+       (callbacks : Callbacks%s) (comms : Communications) : \ Async<unit>
+       =\n" localRole ; generateRuntimeCode writer cfsm stateVarMap *)
     | FStar ->
         (*TODO*)
         fprintf writer

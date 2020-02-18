@@ -50,7 +50,7 @@ and binop =
 
 and unop = Not | Negate
 
-type codeGenMode = LegacyApi | EventApi | FStar
+type codeGenMode = FStar
 
 type role = string
 

@@ -31,13 +31,11 @@ let getCallbackRefinement state varMap transition =
     transition.payload |> List.filter ~f:(fun (x, _) -> not (isDummy x))
   in
   let binder (v : variable) =
-    match !codeGenMode with
-    | FStar -> App (Var (sprintf "Mk%s?.%s" state v), Var "st")
-    | _ -> FieldGet (Var "st", v)
+    App (Var (sprintf "Mk%s?.%s" state v), Var "st")
   in
   let _, payload =
     CFSMAnalysis.attachRefinements transition.assertion varMap payload
-      (Some binder) !codeGenMode
+      (Some binder)
   in
   let argType =
     match action with
@@ -51,9 +49,7 @@ let getCallbackRefinement state varMap transition =
     | Receive -> "unit"
     | _ -> failwith "TODO"
   in
-  match !codeGenMode with
-  | FStar -> sprintf "%s -> ML (%s)" argType retType
-  | _ -> sprintf "%s -> %s" argType retType
+  sprintf "%s -> ML (%s)" argType retType
 
 let addSingleTransitionCallback stateVarMap callbacks transition =
   let action = convertAction transition.action in
@@ -61,15 +57,13 @@ let addSingleTransitionCallback stateVarMap callbacks transition =
   let label = transition.label in
   let field = sprintf "state%dOn%s%s" fromState action label in
   let state = mkStateName fromState in
-  let fieldType = getCallbackType state transition in
+  let _fieldType = getCallbackType state transition in
   let refinement =
     getCallbackRefinement state
       (Map.find_exn stateVarMap fromState)
       transition
   in
-  match !codeGenMode with
-  | FStar -> (field, refinement, None) :: callbacks
-  | _ -> (field, fieldType, Some refinement) :: callbacks
+  (field, refinement, None) :: callbacks
 
 let getChoiceRefinement state vars transition =
   let mkDisjunction cases =
@@ -100,22 +94,15 @@ let getChoiceRefinement state vars transition =
   let freeVars = FreeVar.free_var_term refinementTerm in
   let varsToBind = Set.inter vars freeVars in
   let binder (v : variable) =
-    match !codeGenMode with
-    | FStar -> App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
-    | _ -> FieldGet (Var "st", v)
+    App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
   in
   let refinementTerm =
     Set.fold
       ~f:(fun term var -> Substitution.substitute_term term var (binder var))
       ~init:refinementTerm varsToBind
   in
-  match !codeGenMode with
-  | FStar ->
-      sprintf "(st: state%d) -> ML (choice:state%dChoice{%s})" state state
-        (CFSMAnalysis.termToString refinementTerm)
-  | _ ->
-      sprintf "(st: State%d) -> {choice:int|%s}" state
-        (CFSMAnalysis.termToString refinementTerm)
+  sprintf "(st: state%d) -> ML (choice:state%dChoice{%s})" state state
+    (CFSMAnalysis.termToString refinementTerm)
 
 let addSingleInternalChoiceSendCallback stateVarMap callbacks transition =
   (* TODO: Refactor *)
@@ -124,23 +111,21 @@ let addSingleInternalChoiceSendCallback stateVarMap callbacks transition =
   let label = transition.label in
   let field = sprintf "state%dOn%s%s" fromState action label in
   let state = sprintf "%s_%s" (mkStateName fromState) transition.label in
-  let fieldType = getCallbackType state transition in
+  let _fieldType = getCallbackType state transition in
   (* TODO: Remove those refinements in predicate *)
   let refinement =
     getCallbackRefinement state
       (Map.find_exn stateVarMap fromState)
       transition
   in
-  match !codeGenMode with
-  | FStar -> (field, refinement, None) :: callbacks
-  | _ -> (field, fieldType, Some refinement) :: callbacks
+  (field, refinement, None) :: callbacks
 
 let addTransitionCallback stateVarMap ~key:state ~data:transition callbacks =
   if stateHasInternalChoice transition then
     let field = sprintf "state%d" state in
     let s = if Poly.(!codeGenMode = FStar) then 's' else 'S' in
     let eff = if Poly.(!codeGenMode = FStar) then "ML " else "" in
-    let fieldType =
+    let _fieldType =
       sprintf "%ctate%d -> %s%ctate%dChoice" s state eff s state
     in
     let currentStateVars =
@@ -150,9 +135,8 @@ let addTransitionCallback stateVarMap ~key:state ~data:transition callbacks =
     in
     let refinement = getChoiceRefinement state currentStateVars transition in
     let callbacks =
-      match !codeGenMode with
-      | FStar -> (field, refinement, None) :: callbacks (* nasty HACK *)
-      | _ -> (field, fieldType, Some refinement) :: callbacks
+      (field, refinement, None) :: callbacks
+      (* nasty HACK *)
     in
     List.fold
       ~f:(addSingleInternalChoiceSendCallback stateVarMap)
@@ -183,10 +167,7 @@ let mkStateRecord (vars, assertions) =
           List.partition_tf ~f:isRefinementClosed assertions
         in
         let newPayloadItem =
-          ( var
-          , ty
-          , CFSMAnalysis.makeRefinementAttribute var ty closed !codeGenMode
-          )
+          (var, ty, CFSMAnalysis.makeRefinementAttribute var ty closed)
         in
         aux (rest, notClosed) (newPayloadItem :: refinedPayload)
   in

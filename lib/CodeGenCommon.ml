@@ -20,7 +20,7 @@ type typeDef = Union of unionCase list | Record of recordItem list
 
 type content = typeDef smap
 
-let codeGenMode = ref EventApi
+let codeGenMode = ref FStar
 
 let defaultTypeAliasMap =
   Map.of_alist_exn
@@ -33,7 +33,7 @@ let resolveTypeAlias tyName =
   | None -> tyName
 
 let mkStateName state =
-  let st = match !codeGenMode with FStar -> "state" | _ -> "State" in
+  let st = "state" in
   sprintf "%s%d" st state
 
 let allRoles ((_, _, transitions, _) : cfsm) =
@@ -80,10 +80,7 @@ let productOfRefinedPayload payload =
   else
     let getType (v, tyName, refinement) =
       match refinement with
-      | Some r -> (
-        match !codeGenMode with
-        | FStar -> sprintf "%s:%s{%s}" v tyName r
-        | _ -> r )
+      | Some r -> sprintf "%s:%s{%s}" v tyName r
       | None -> tyName
     in
     List.map ~f:getType payload |> String.concat ~sep:" * "
@@ -100,10 +97,7 @@ let curriedPayloadRefined payload =
     let getType (var, tyName, refinement) =
       let refinement =
         match refinement with
-        | Some r -> (
-          match !codeGenMode with
-          | FStar -> sprintf "%s{%s}" tyName r
-          | _ -> r )
+        | Some r -> sprintf "%s{%s}" tyName r
         | None -> tyName
       in
       sprintf "(%s: %s)" var refinement

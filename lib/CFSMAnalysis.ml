@@ -32,15 +32,13 @@ and binopToString b =
 
 and unopToString u = match u with Negate -> "-" | Not -> "not"
 
-let makeRefinementAttribute var ty terms codeGenMode =
+let makeRefinementAttribute _ _ terms =
   match terms with
   | [] -> None
-  | terms -> (
+  | terms ->
       let terms = List.map ~f:termToString terms in
       let refinement = String.concat ~sep:" && " terms in
-      match codeGenMode with
-      | FStar -> Some refinement
-      | _ -> Some (sprintf "{%s:%s|%s}" var ty refinement) )
+      Some refinement
 
 let bindVars varsToBind binder term =
   let freeVars = FreeVar.free_var_term term in
@@ -51,7 +49,7 @@ let bindVars varsToBind binder term =
     ~f:(fun term var -> Substitution.substitute_term term var (binder var))
     ~init:term varsToBind
 
-let attachRefinements refinements (vars, _) payloads binder codeGenMode =
+let attachRefinements refinements (vars, _) payloads binder =
   let addVariableWithRefinements (refinements, existingPayload) (var, ty) =
     let varsToBind = List.map ~f:fst vars in
     let knownVars = List.map ~f:(fun (v, _, _) -> v) existingPayload in
@@ -67,9 +65,7 @@ let attachRefinements refinements (vars, _) payloads binder codeGenMode =
       | Some binder -> List.map ~f:(bindVars varsToBind binder) closed
       | None -> closed
     in
-    let newPayloadItem =
-      (var, ty, makeRefinementAttribute var ty closed codeGenMode)
-    in
+    let newPayloadItem = (var, ty, makeRefinementAttribute var ty closed) in
     ((notClosed, newPayloadItem :: existingPayload), newPayloadItem)
   in
   List.fold_map ~f:addVariableWithRefinements
