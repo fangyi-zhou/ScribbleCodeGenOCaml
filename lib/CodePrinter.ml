@@ -267,22 +267,52 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
         | {action= Send; _} ->
             let generateCase transition =
               let label = transition.label in
-              (* let role = transition.partner in *)
-              let () =
-                if Poly.(!codeGenMode = FStar) then
-                  fprintf writer "| Choice%d%s ->\n" state label
-                else fprintf writer "| State%dChoice.%s ->\n" state label
-              in
-              indent writer ;
-              let stateTyName = sprintf "%s%d_%s" stateTy state label in
+              let p = transition.payload in
+              let p = if List.is_empty p then [("_dummy", "unit")] else p in
+              let var, ty = List.hd_exn p in
+              let ty = resolveTypeAlias ty in
+              let r = transition.partner in
+              let l = transition.label in
+              let toState = transition.toState in
+              let recExprs = transition.recVarExpr in
+              (* let () = if Poly.(!codeGenMode = FStar) then *)
+              fprintf writer "| Choice%d%s %s ->\n" state label var ;
+              (* else fprintf writer "| State%dChoice.%s ->\n" state label in *)
+              fprintf writer "%scomms.send_string %s \"%s\"%s\n" doBang r l
+                semi_ ;
+              fprintf writer "%scomms.send_%s %s %s%s\n" doBang ty r var
+                semi_ ;
+              let stateTyName = sprintf "%s%d" stateTy toState in
               fprintf writer "let st : %s = " stateTyName ;
-              assembleState writer stateVarMap recVarMap state "" stateTyName
-                (sprintf "state%d" state) [] ;
+              let prevStateName = sprintf "state%d" state in
+              let recVars =
+                Map.find recVarMap toState
+                |> Option.map ~f:(fun (x, _) -> List.map ~f:fst x)
+                |> Option.value ~default:[]
+              in
+              let bindVar v =
+                if String.equal v var then Var var
+                else App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
+              in
+              let stateVars =
+                Map.find_exn stateVarMap state |> fst |> List.map ~f:fst
+              in
+              let recExprs =
+                List.map
+                  ~f:(fun v ->
+                    v
+                    |> CFSMAnalysis.bindVars stateVars bindVar
+                    |> CFSMAnalysis.termToString)
+                  recExprs
+              in
+              assembleState writer stateVarMap recVarMap toState var
+                stateTyName prevStateName
+                (List.zip_exn recVars recExprs) ;
               in__ writer ;
-              generateForTransition transition (Some stateTyName) ;
-              unindent writer
+              fprintf writer "%srunState%d st\n" returnBang toState
             in
-            fprintf writer "let label = callbacks.state%d st%s\n" state in_ ;
+            fprintf writer "let label = callbacks.state%dOnsend st%s\n" state
+              in_ ;
             fprintf writer "match label with\n" ;
             indent writer ;
             List.iter ~f:generateCase stateTransition ;
