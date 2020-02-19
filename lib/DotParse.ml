@@ -29,7 +29,9 @@ let parse content : graphData =
         (* Only supporting one to-node *)
         let nid2 = List.hd_exn nids in
         let edges =
-          Map.update edges (unnode nid1, unnode nid2) ~f:(fun o -> attr :: Option.value ~default:[] o)
+          Map.update edges
+            (unnode nid1, unnode nid2)
+            ~f:(fun o -> attr :: Option.value ~default:[] o)
         in
         {g with edges}
     | _ -> g
