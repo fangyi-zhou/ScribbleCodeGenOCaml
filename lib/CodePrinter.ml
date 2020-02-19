@@ -95,9 +95,9 @@ let generatePreamble writer _moduleName _protocol _localRole =
   let moduleName = Caml.Filename.remove_extension !fileName in
   fprintf writer "module %s\n" moduleName ;
   writeln writer "(* This file is GENERATED, do not modify manually *)" ;
-  if Poly.(!codeGenMode <> FStar) then
-    writeln writer "open FluidTypes.Annotations"
-  else writeln writer "open FStar.All" ;
+  (* if Poly.(!codeGenMode <> FStar) then
+    writeln writer "open FluidTypes.Annotations" *)
+  writeln writer "open FStar.All" ;
   writeln writer "open FStar.Error" ;
   writeln writer ""
 
