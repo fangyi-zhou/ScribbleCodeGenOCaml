@@ -212,6 +212,9 @@ let addInternalChoices stateVarMap ~key:state ~data:transition content =
             transition.payload
             |> List.filter ~f:(fun (x, _) -> not (isDummy x))
           in
+          let payload =
+            if List.is_empty payload then [("_dummy", "unit")] else payload
+          in
           let binder (v : variable) =
             App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
           in
