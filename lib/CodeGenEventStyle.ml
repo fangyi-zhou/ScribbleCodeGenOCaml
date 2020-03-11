@@ -22,7 +22,7 @@ let getCallbackType state transition =
     | Receive -> "unit"
     | _ -> failwith "TODO"
   in
-  let eff = if Poly.(!codeGenMode = FStar) then "ML " else "" in
+  let eff = "ML " in
   sprintf "%s -> %s%s" argType eff retType
 
 let getCallbackRefinement state varMap transition =
@@ -190,48 +190,38 @@ let addSendStatePredicate stateVarMap state content transition =
       transition.assertion
   in
   let record = mkStateRecord (vars, assertions @ preconditions) in
-  let s = if Poly.(!codeGenMode = FStar) then 's' else 'S' in
-  let recordName = sprintf "%ctate%d_%s" s state transition.label in
+  let recordName = sprintf "state%d_%s" state transition.label in
   Map.add_exn ~key:recordName ~data:record content
 
 let addInternalChoices stateVarMap ~key:state ~data:transition content =
   if stateHasInternalChoice transition then
     let choices =
-      if Poly.(!codeGenMode <> FStar) then
-        let counter = ref 0 in
-        let makeChoiceEnumItem (transition : transition) =
-          let enumValue = !counter in
-          counter := !counter + 1 ;
-          (sprintf "%s = %d" transition.label enumValue, [], None)
+      let f transition =
+        let action = transition.action in
+        let payload =
+          transition.payload
+          |> List.filter ~f:(fun (x, _) -> not (isDummy x))
         in
-        List.map ~f:makeChoiceEnumItem transition
-      else
-        let f transition =
-          let action = transition.action in
-          let payload =
-            transition.payload
-            |> List.filter ~f:(fun (x, _) -> not (isDummy x))
-          in
-          let payload =
-            if List.is_empty payload then [("_dummy", "unit")] else payload
-          in
-          let binder (v : variable) =
-            App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
-          in
-          let varMap = Map.find_exn stateVarMap state in
-          let _, payload =
-            CFSMAnalysis.attachRefinements transition.assertion varMap
-              payload (Some binder)
-          in
-          let retType =
-            match action with
-            | Send -> productOfRefinedPayload payload
-            | Receive -> "unit"
-            | _ -> failwith "TODO"
-          in
-          (sprintf "Choice%d%s" state transition.label, [retType], None)
+        let payload =
+          if List.is_empty payload then [("_dummy", "unit")] else payload
         in
-        List.map ~f transition
+        let binder (v : variable) =
+          App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
+        in
+        let varMap = Map.find_exn stateVarMap state in
+        let _, payload =
+          CFSMAnalysis.attachRefinements transition.assertion varMap payload
+            (Some binder)
+        in
+        let retType =
+          match action with
+          | Send -> productOfRefinedPayload payload
+          | Receive -> "unit"
+          | _ -> failwith "TODO"
+        in
+        (sprintf "Choice%d%s" state transition.label, [retType], None)
+      in
+      List.map ~f transition
     in
     let union = Union choices in
     Map.add_exn

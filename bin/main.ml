@@ -20,8 +20,6 @@ let protocol = ref ""
 
 let role = ref ""
 
-let mode = ref Types.FStar
-
 let recursion = ref true
 
 let err msg = print_string msg ; print_string usage ; exit 1
@@ -50,6 +48,6 @@ let () =
     if !protocol = "" then err "Error: Protocol not set" ;
     if !role = "" then err "Error: Role not set" ;
     if filename = "" then err "Error: File not set" ;
-    Lib.processScribbleOutput filename !protocol !role !mode !recursion
+    Lib.processScribbleOutput filename !protocol !role !recursion
   in
   Arg.parse speclist run usage

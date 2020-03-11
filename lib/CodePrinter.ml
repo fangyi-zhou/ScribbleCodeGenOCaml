@@ -23,18 +23,11 @@ let ensureStartsWithLowerCase (string : string) = String.uncapitalize string
 
 let writeTypeDefPreamble writer isFirst (name : string) content =
   let noeq =
-    if
-      String.is_prefix name ~prefix:"Callbacks"
-      && Poly.(!codeGenMode = FStar)
-    then "noeq "
-    else ""
+    if String.is_prefix name ~prefix:"Callbacks" then "noeq " else ""
     (* Yet another nasty HACK *)
   in
   let preamble = if isFirst then noeq ^ "type" else "and" in
-  let name =
-    if Poly.(!codeGenMode = FStar) then ensureStartsWithLowerCase name
-    else name
-  in
+  let name = ensureStartsWithLowerCase name in
   fprintf writer "%s %s%s\n" preamble name content
 
 let writeUnionCase writer (tag, fieldTypes, refinement) =
@@ -72,8 +65,8 @@ let writeRecord writer isFirst name record =
     writeTypeDefPreamble writer isFirst name " = {" ;
     indent writer ;
     (* FIXME: Hack *)
-    if Poly.(!codeGenMode = FStar) && String.is_prefix name ~prefix:"state"
-    then fprintf writer "_dum%s : unit;\n" name ;
+    if String.is_prefix name ~prefix:"state" then
+      fprintf writer "_dum%s : unit;\n" name ;
     List.iter ~f:(writeRecordItem writer) record ;
     unindent writer ;
     writeln writer "}" )
@@ -111,11 +104,7 @@ let generatePreamble writer _moduleName _protocol _localRole =
 
 let assembleState writer stateVarMap recVarMap state var stateTy prevStateTy
     recExprs =
-  let fieldGet field stateName =
-    if Poly.(!codeGenMode = FStar) then
-      sprintf "(Mk%s?.%s st)" stateName field
-    else "st." ^ field
-  in
+  let fieldGet field stateName = sprintf "(Mk%s?.%s st)" stateName field in
   (* Sort? *)
   let recExprs = Map.of_alist_exn (module String) recExprs in
   let getInitExpr v =
@@ -131,8 +120,7 @@ let assembleState writer stateVarMap recVarMap state var stateTy prevStateTy
   else (
     fprintf writer "{\n" ;
     indent writer ;
-    if Poly.(!codeGenMode = FStar) then
-      fprintf writer "_dum%s = ();\n" stateTy ;
+    fprintf writer "_dum%s = ();\n" stateTy ;
     let getVar v =
       match v with
       | v when String.equal v var -> v
@@ -144,11 +132,9 @@ let assembleState writer stateVarMap recVarMap state var stateTy prevStateTy
     fprintf writer "}\n" )
 
 let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
-  let in_ = if Poly.(!codeGenMode = FStar) then " in" else "" in
-  let in__ writer =
-    if Poly.(!codeGenMode = FStar) then writeln writer "in"
-  in
-  let semi_ = if Poly.(!codeGenMode = FStar) then ";" else "" in
+  let in_ = " in" in
+  let in__ writer = writeln writer "in" in
+  let semi_ = ";" in
   (* let bang = if Poly.(!codeGenMode = EventApi) then "!" else "" in let
      doBang = if Poly.(!codeGenMode = EventApi) then "do! " else "" in let
      returnBang = if Poly.(!codeGenMode = EventApi) then "return! " else ""
@@ -156,14 +142,13 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
   let bang = "" in
   let doBang = "" in
   let returnBang = "" in
-  let stateTy = if Poly.(!codeGenMode = FStar) then "state" else "State" in
+  let stateTy = "state" in
   let _, finalStates, transitions, recVarMap = cfsm in
   let functionName = sprintf "runState%d" state in
   let preamble = if isInit then "let rec" else "and" in
   let () =
-    fprintf writer "%s %s (st: %s%d) : %s =\n" preamble functionName stateTy
-      state
-      (if Poly.(!codeGenMode = FStar) then "ML unit" else "Async<unit>")
+    fprintf writer "%s %s (st: %s%d) : ML unit =\n" preamble functionName
+      stateTy state
   in
   indent writer ;
   (* let () = if Poly.(!codeGenMode = EventApi) then writeln writer "async {"
@@ -198,19 +183,18 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
                 fprintf writer "let%s %s = comms.recv_%s %s ()%s\n" bang var
                   ty r in_ ;
                 let () =
-                  if Poly.(!codeGenMode = FStar) then
-                    let binder (v : variable) =
-                      App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
-                    in
-                    let varMap = Map.find_exn stateVarMap state in
-                    let _, payload =
-                      CFSMAnalysis.attachRefinements t.assertion varMap p
-                        (Some binder)
-                    in
-                    match payload with
-                    | [(_, _, Some r)] -> fprintf writer "assume (%s);\n" r
-                    | [(_, _, None)] -> ()
-                    | _ -> failwith "Unreachable"
+                  let binder (v : variable) =
+                    App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
+                  in
+                  let varMap = Map.find_exn stateVarMap state in
+                  let _, payload =
+                    CFSMAnalysis.attachRefinements t.assertion varMap p
+                      (Some binder)
+                  in
+                  match payload with
+                  | [(_, _, Some r)] -> fprintf writer "assume (%s);\n" r
+                  | [(_, _, None)] -> ()
+                  | _ -> failwith "Unreachable"
                 in
                 fprintf writer "callbacks.%s st %s%s\n" callbackName
                   (if isDummy var then "" else var)
@@ -330,10 +314,7 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
             fprintf writer "match label with\n" ;
             indent writer ;
             List.iter ~f:generateCase stateTransition ;
-            let fail =
-              if Poly.(!codeGenMode = FStar) then "unexpected"
-              else "failwith"
-            in
+            let fail = "unexpected" in
             fprintf writer "| _ -> %s \"unexpected label\"\n" fail ;
             unindent writer
         | _ -> failwith "TODO"
@@ -345,10 +326,8 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
 let generateRuntimeCode writer (cfsm : cfsm) stateVarMap =
   let initState, _, _, recVarMap = cfsm in
   let states = allStates cfsm in
-  let in__ writer =
-    if Poly.(!codeGenMode = FStar) then writeln writer "in"
-  in
-  let stateTy = if Poly.(!codeGenMode = FStar) then "state" else "State" in
+  let in__ writer = writeln writer "in" in
+  let stateTy = "state" in
   let stateName = sprintf "%s%d" stateTy initState in
   indent writer ;
   (* printfn "%A" cfsm *)
@@ -364,16 +343,10 @@ let generateRuntimeCode writer (cfsm : cfsm) stateVarMap =
   unindent writer
 
 let writeCommunicationDef writer =
-  let noeq = if Poly.(!codeGenMode = FStar) then "noeq " else "" in
-  let comm =
-    if Poly.(!codeGenMode = FStar) then "communications"
-    else "Communications"
-  in
-  let role = if Poly.(!codeGenMode = FStar) then "role" else "Role" in
-  let mkReturn ty =
-    if Poly.(!codeGenMode = FStar) then sprintf "ML %s" ty
-    else sprintf "Async<%s>" ty
-  in
+  let noeq = "noeq " in
+  let comm = "connection" in
+  let role = "role" in
+  let mkReturn ty = sprintf "ML %s" ty in
   let unitTy = mkReturn "unit" in
   let intTy = mkReturn "int" in
   let stringTy = mkReturn "string" in
@@ -396,18 +369,10 @@ let generateCode (cfsm : cfsm) protocol localRole =
   List.iter ~f:(writeContents writer) content ;
   writeCommunicationDef writer ;
   let () =
-    match !codeGenMode with
-    (* | LegacyApi -> let init, _, _, _ = cfsm in fprintf writer "let init =
-       %s\n" (mkStateName init) | EventApi -> fprintf writer "let run
-       (callbacks : Callbacks%s) (comms : Communications) : \ Async<unit>
-       =\n" localRole ; generateRuntimeCode writer cfsm stateVarMap *)
-    | FStar ->
-        (*TODO*)
-        fprintf writer
-          "let run (callbacks : callbacks%s) (comms : communications) : ML \
-           unit =\n"
-          localRole ;
-        generateRuntimeCode writer cfsm stateVarMap
+    fprintf writer
+      "let run (callbacks : callbacks%s) (comms : connection) : ML unit =\n"
+      localRole ;
+    generateRuntimeCode writer cfsm stateVarMap
   in
   Caml.Format.pp_print_flush writer () ;
   Out_channel.close file

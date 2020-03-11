@@ -20,8 +20,6 @@ type typeDef = Union of unionCase list | Record of recordItem list
 
 type content = typeDef smap
 
-let codeGenMode = ref FStar
-
 let defaultTypeAliasMap =
   Map.of_alist_exn
     (module String)
