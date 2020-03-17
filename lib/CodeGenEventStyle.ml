@@ -231,6 +231,17 @@ let addInternalChoices stateVarMap ~key:state ~data:transition content =
        ~init:content transition *)
   else content
 
+let getLabels transitions =
+  let f ~key:_ ~data acc =
+    let f acc transition = Set.add acc transition.label in
+    List.fold ~f ~init:acc data
+  in
+  let labels = Map.fold ~f ~init:(Set.empty (module String)) transitions in
+  let labels =
+    Union (List.map ~f:(fun ctor -> (ctor, [], None)) (Set.to_list labels))
+  in
+  Map.singleton (module String) "label" labels
+
 let generateCodeContentEventStyleApi cfsm stateVarMap localRole =
   let _, _, transitions, _ = cfsm in
   let states = allStates cfsm in
@@ -240,6 +251,7 @@ let generateCodeContentEventStyleApi cfsm stateVarMap localRole =
     addStateRecords stateVarMap (Map.empty (module String))
   in
   let roles = addRole (Map.empty (module String)) roles in
+  let labels = getLabels transitions in
   let choices =
     Map.fold
       ~f:(addInternalChoices stateVarMap)
@@ -255,4 +267,4 @@ let generateCodeContentEventStyleApi cfsm stateVarMap localRole =
       (module String)
       [("Callbacks" ^ localRole, Record callbacks)]
   in
-  [roles; stateRecords; choices; callbacks]
+  [roles; labels; stateRecords; choices; callbacks]

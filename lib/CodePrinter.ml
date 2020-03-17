@@ -169,7 +169,7 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
           let () =
             match a with
             | Send ->
-                fprintf writer "%scomms.send_string %s \"%s\"%s\n" doBang r l
+                fprintf writer "%scomms.send_label %s %s%s\n" doBang r l
                   semi_ ;
                 let callbackName = sprintf "state%dOnsend%s" state l in
                 fprintf writer "let %s = callbacks.%s st%s\n" var
@@ -262,8 +262,7 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
               (* let () = if Poly.(!codeGenMode = FStar) then *)
               fprintf writer "| Choice%d%s %s ->\n" state label var ;
               (* else fprintf writer "| State%dChoice.%s ->\n" state label in *)
-              fprintf writer "%scomms.send_string %s \"%s\"%s\n" doBang r l
-                semi_ ;
+              fprintf writer "%scomms.send_label %s %s%s\n" doBang r l semi_ ;
               fprintf writer "%scomms.send_%s %s %s%s\n" doBang ty r var
                 semi_ ;
               let stateTyName = sprintf "%s%d" stateTy toState in
@@ -304,12 +303,12 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
         | {action= Receive; partner= role; _} ->
             let generateCase transition =
               let label = transition.label in
-              fprintf writer "| \"%s\" ->\n" label ;
+              fprintf writer "| %s ->\n" label ;
               indent writer ;
               generateForTransition transition None ;
               unindent writer
             in
-            fprintf writer "let%s label = comms.recv_string %s ()%s\n" bang
+            fprintf writer "let%s label = comms.recv_label %s ()%s\n" bang
               role in_ ;
             fprintf writer "match label with\n" ;
             indent writer ;
@@ -347,16 +346,17 @@ let writeCommunicationDef writer =
   let comm = "connection" in
   let role = "role" in
   let mkReturn ty = sprintf "ML %s" ty in
-  let unitTy = mkReturn "unit" in
-  let intTy = mkReturn "int" in
-  let stringTy = mkReturn "string" in
+  let mkSend name =
+    sprintf "send_%s : %s -> %s -> %s;\n" name role name (mkReturn "unit")
+  in
+  let mkRecv name =
+    sprintf "recv_%s : %s -> %s -> %s;\n" name role "unit" (mkReturn name)
+  in
+  let types = ["int"; "string"; "unit"; "label"] in
   fprintf writer "%stype %s = {\n" noeq comm ;
-  fprintf writer "    send_int : %s -> int -> %s;\n" role unitTy ;
-  fprintf writer "    send_string : %s -> string -> %s;\n" role unitTy ;
-  fprintf writer "    send_unit : %s -> unit -> %s;\n" role unitTy ;
-  fprintf writer "    recv_int : %s -> unit -> %s;\n" role intTy ;
-  fprintf writer "    recv_string : %s -> unit -> %s;\n" role stringTy ;
-  fprintf writer "    recv_unit : %s -> unit -> %s;\n" role unitTy ;
+  List.iter
+    ~f:(fun ty -> fprintf writer "%s%s" (mkSend ty) (mkRecv ty))
+    types ;
   fprintf writer "}\n"
 
 let generateCode (cfsm : cfsm) protocol localRole =

@@ -48,7 +48,7 @@ let parseTransition fromState toState label : transition =
   ; toState
   ; partner
   ; action
-  ; label
+  ; label= String.capitalize label
   ; payload
   ; assertion= parseAssertionAndChunk assertionString
   ; recVarExpr }
