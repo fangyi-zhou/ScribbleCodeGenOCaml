@@ -40,20 +40,38 @@ let rec parsePayloadItems str : payload * char seq =
         failwithf "unexpected item in payloads %s" (seqToString rest) ()
     | None -> ([payloadItem], rest)
 
-let parsePayload str : payload * char seq =
+let parsePayload str : payload * payload * char seq =
+  let parseRelPayload str =
+    let str = Sequence.tl_eagerly_exn str in
+    let items, rest = span (Char.( <> ) ')') str in
+    let payload, rest' = parsePayloadItems items in
+    if not (Sequence.is_empty rest') then
+      eprintf "LeftOver Payloads %s\n" (seqToString rest') ;
+    let rest =
+      match Sequence.hd_exn rest with
+      | ')' -> Sequence.tl_eagerly_exn rest
+      | _ -> failwith "unfinished payload, missing ')'"
+    in
+    (payload, rest)
+  in
   match Sequence.hd_exn str with
-  | '(' ->
+  | '[' ->
+      (* Irrelevant Vars *)
       let str = Sequence.tl_eagerly_exn str in
-      let items, rest = span (Char.( <> ) ')') str in
-      let payload, rest' = parsePayloadItems items in
+      let items, rest = span (Char.( <> ) ']') str in
+      let irrpayload, rest' = parsePayloadItems items in
       if not (Sequence.is_empty rest') then
         eprintf "LeftOver Payloads %s\n" (seqToString rest') ;
       let rest =
         match Sequence.hd_exn rest with
-        | ')' -> Sequence.tl_eagerly_exn rest
-        | _ -> failwith "unfinished payload, missing ')'"
+        | ']' -> Sequence.tl_eagerly_exn rest
+        | _ -> failwith "unfinished payload, missing ']'"
       in
-      (payload, rest)
+      let relpayload, rest = parseRelPayload rest in
+      (irrpayload, relpayload, rest)
+  | '(' ->
+      let relpayload, rest = parseRelPayload str in
+      ([], relpayload, rest)
   | _ -> failwith "invalid payload"
 
 let parseRole str : role * char seq =
@@ -137,30 +155,34 @@ let parseRecVars str : char seq list * char seq =
   | _ -> failwith "invalid recursion variable list, missing '<'"
 
 let parseDotLabelPrefix (str : string) :
-    role * action * label * payload * char seq =
+    role * action * label * payload * payload * char seq =
   (* let str = str.ToCharArray() |> Sequence.ofArray in *)
   let str = str |> String.to_list |> Sequence.of_list in
   let partner, str = parseRole str in
   let action, str = parseAction str in
   let label, str = parseLabel str in
-  let payload, str = parsePayload str in
-  (partner, action, label, payload, str)
+  let irrpayload, payload, str = parsePayload str in
+  (partner, action, label, irrpayload, payload, str)
 
 let parseOldDotLabel (str : string) =
-  let partner, action, label, payload, str = parseDotLabelPrefix str in
+  let partner, action, label, irrpayload, payload, str =
+    parseDotLabelPrefix str
+  in
   let assertion, str = parseOldAssertionString str in
   if not (Sequence.is_empty str) then
     eprintf "Unexpected %s\n" (seqToString str) ;
-  (partner, action, label, payload, assertion, [])
+  (partner, action, label, irrpayload, payload, assertion, [])
 
 let parseNewDotLabel (str : string) =
-  let partner, action, label, payload, str = parseDotLabelPrefix str in
+  let partner, action, label, irrpayload, payload, str =
+    parseDotLabelPrefix str
+  in
   let assertion, str = parseNewAssertionString str in
   let stateVars, str = parseRecVars str in
   let stateVars = List.map ~f:seqToString stateVars in
   if not (Sequence.is_empty str) then
     eprintf "Unexpected %s\n" (seqToString str) ;
-  (partner, action, label, payload, assertion, stateVars)
+  (partner, action, label, irrpayload, payload, assertion, stateVars)
 
 let parseRecVarEntry (str : string) =
   let str = str |> String.to_list |> Sequence.of_list in

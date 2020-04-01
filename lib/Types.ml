@@ -74,6 +74,7 @@ type transition =
   ; partner: role
   ; action: action
   ; label: label
+  ; irrpayload: payload
   ; payload: payload
   ; assertion: assertion
   ; recVarExpr: term list }

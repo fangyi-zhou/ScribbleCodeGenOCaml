@@ -39,7 +39,13 @@ let parseAssertionAndChunk assertion =
       []
 
 let parseTransition fromState toState label : transition =
-  let partner, action, label, payload, assertionString, recVarExpr =
+  let ( partner
+      , action
+      , label
+      , irrpayload
+      , payload
+      , assertionString
+      , recVarExpr ) =
     if not !newSyntax then Parse.parseOldDotLabel label
     else Parse.parseNewDotLabel label
   in
@@ -49,6 +55,7 @@ let parseTransition fromState toState label : transition =
   ; partner
   ; action
   ; label= String.capitalize label
+  ; irrpayload
   ; payload
   ; assertion= parseAssertionAndChunk assertionString
   ; recVarExpr }
