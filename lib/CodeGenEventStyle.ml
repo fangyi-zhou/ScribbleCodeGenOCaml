@@ -151,7 +151,7 @@ let mkStateRecord (vars, assertions) =
           (* then eprintf "Dropped assertions %A\n" assertions; *)
         then () ;
         List.rev refinedPayload
-    | (var, ty) :: rest ->
+    | (var, ty, _is_concrete) :: rest ->
         let knownVars = List.map ~f:(fun (v, _, _) -> v) refinedPayload in
         let boundVars =
           Set.add (Set.of_list (module String) knownVars) var
@@ -180,7 +180,8 @@ let addSendStatePredicate stateVarMap state content transition =
   let vars, assertions = Map.find_exn stateVarMap state in
   let currentStateVars =
     Map.find_exn stateVarMap state
-    |> fst |> List.map ~f:fst
+    |> fst
+    |> List.map ~f:(fun (x, _, _) -> x)
     |> Set.of_list (module String)
   in
   let preconditions =

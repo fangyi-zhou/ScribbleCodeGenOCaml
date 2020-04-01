@@ -92,7 +92,8 @@ type cfsm =
 
 type refinement = string
 
-type stateVariableMap = ((variable * vartype) list * assertion) stateMap
+type stateVariableMap =
+  ((variable * vartype * bool) list * assertion) stateMap
 
 type vset = Set.M(String).t
 

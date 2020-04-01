@@ -51,7 +51,7 @@ let bindVars varsToBind binder term =
 
 let attachRefinements refinements (vars, _) payloads binder =
   let addVariableWithRefinements (refinements, existingPayload) (var, ty) =
-    let varsToBind = List.map ~f:fst vars in
+    let varsToBind = List.map ~f:(fun (x, _, _) -> x) vars in
     let knownVars = List.map ~f:(fun (v, _, _) -> v) existingPayload in
     let boundVars = Set.add (Set.of_list (module String) knownVars) var in
     let isRefinementClosed term =
@@ -69,7 +69,7 @@ let attachRefinements refinements (vars, _) payloads binder =
     ((notClosed, newPayloadItem :: existingPayload), newPayloadItem)
   in
   List.fold_map ~f:addVariableWithRefinements
-    ~init:(refinements, List.map ~f:(fun (x, y) -> (x, y, None)) vars)
+    ~init:(refinements, List.map ~f:(fun (x, y, _) -> (x, y, None)) vars)
     payloads
 
 let constructVariableMap (cfsm : cfsm) : stateVariableMap =
@@ -83,7 +83,8 @@ let constructVariableMap (cfsm : cfsm) : stateVariableMap =
       let recVar, recAssertion =
         match Map.find recVars state with
         | Some (recVar, recAssertion) ->
-            (List.map ~f:(fun (v, _) -> (v, "int")) recVar, recAssertion)
+            ( List.map ~f:(fun (v, _) -> (v, "int", true)) recVar
+            , recAssertion )
         | None -> ([], [])
       in
       let vars = recVar @ vars in
@@ -92,8 +93,13 @@ let constructVariableMap (cfsm : cfsm) : stateVariableMap =
       let transitions = Map.find_exn allTransitions state in
       let updateWithTransition transition =
         let newAssertions = transition.assertion in
-        let newVars = transition.payload in
-        (vars @ newVars, assertions @ newAssertions)
+        let newVars =
+          List.map ~f:(fun (x, y) -> (x, y, true)) transition.payload
+        in
+        let newIrrVars =
+          List.map ~f:(fun (x, y) -> (x, y, false)) transition.irrpayload
+        in
+        (vars @ newVars @ newIrrVars, assertions @ newAssertions)
       in
       List.fold
         ~f:(fun varMap transition ->

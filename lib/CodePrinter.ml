@@ -102,20 +102,20 @@ let generatePreamble writer _moduleName _protocol _localRole =
    //writeln writer ("let recv_unit : unit -> unit = failwith \"TODO\"")
    //writeln writer "" *)
 
-let assembleState writer stateVarMap recVarMap state var stateTy prevStateTy
-    recExprs =
+let assembleState writer (stateVarMap : stateVariableMap) recVarMap state var
+    stateTy prevStateTy recExprs =
   let fieldGet field stateName = sprintf "(Mk%s?.%s st)" stateName field in
-  (* Sort? *)
   let recExprs = Map.of_alist_exn (module String) recExprs in
   let getInitExpr v =
     match Map.find recVarMap state with
     | Some (vars, _) ->
-        (* Sort? *)
         let vars = Map.of_alist_exn (module String) vars in
         Map.find vars v
     | None -> None
   in
-  let vars = Map.find_exn stateVarMap state |> fst |> List.map ~f:fst in
+  let vars =
+    Map.find_exn stateVarMap state |> fst |> List.map ~f:(fun (x, _, _) -> x)
+  in
   if List.is_empty vars then fprintf writer "()\n"
   else (
     fprintf writer "{\n" ;
@@ -216,7 +216,9 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
             else App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
           in
           let stateVars =
-            Map.find_exn stateVarMap state |> fst |> List.map ~f:fst
+            Map.find_exn stateVarMap state
+            |> fst
+            |> List.map ~f:(fun (x, _, _) -> x)
           in
           let recExprs =
             List.map
@@ -278,7 +280,9 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
                 else App (Var (sprintf "Mkstate%d?.%s" state v), Var "st")
               in
               let stateVars =
-                Map.find_exn stateVarMap state |> fst |> List.map ~f:fst
+                Map.find_exn stateVarMap state
+                |> fst
+                |> List.map ~f:(fun (x, _, _) -> x)
               in
               let recExprs =
                 List.map

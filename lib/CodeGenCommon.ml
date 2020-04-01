@@ -104,7 +104,7 @@ let curriedPayloadRefined payload =
 
 let cleanUpVarMap stateVarMap =
   let cleanUpSingle (vars, assertions) =
-    (List.filter ~f:(fun (name, _) -> not (isDummy name)) vars, assertions)
+    (List.filter ~f:(fun (name, _, _) -> not (isDummy name)) vars, assertions)
   in
   Map.map ~f:cleanUpSingle stateVarMap
 
