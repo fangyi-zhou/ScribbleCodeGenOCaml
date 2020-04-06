@@ -14,6 +14,7 @@ let rec termToString term =
   | App (Const (Unop u), t1) ->
       sprintf "(%s %s)" (unopToString u) (termToString t1)
   | App (Var v1, Var v2) -> sprintf "(%s %s)" v1 v2
+  | App (Var "reveal", t) -> sprintf "reveal (%s)" (termToString t)
   | FieldGet (t, v) -> sprintf "(%s$%s)" (termToString t) v
   | _ -> failwith "TODO"
 
@@ -51,6 +52,11 @@ let bindVars varsToBind binder term =
 
 let attachRefinements refinements (vars, _) payloads binder =
   let addVariableWithRefinements (refinements, existingPayload) (var, ty) =
+    let is_irrelevant v =
+      List.exists
+        ~f:(fun (x, _, is_concrete) -> String.equal x v && not is_concrete)
+        vars
+    in
     let varsToBind = List.map ~f:(fun (x, _, _) -> x) vars in
     let knownVars = List.map ~f:(fun (v, _, _) -> v) existingPayload in
     let boundVars = Set.add (Set.of_list (module String) knownVars) var in
@@ -62,7 +68,12 @@ let attachRefinements refinements (vars, _) payloads binder =
     in
     let closed =
       match binder with
-      | Some binder -> List.map ~f:(bindVars varsToBind binder) closed
+      | Some binder ->
+          let binder v =
+            let bound = binder v in
+            if is_irrelevant v then App (Var "reveal", bound) else bound
+          in
+          List.map ~f:(bindVars varsToBind binder) closed
       | None -> closed
     in
     let newPayloadItem = (var, ty, makeRefinementAttribute var ty closed) in

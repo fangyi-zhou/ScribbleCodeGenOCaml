@@ -151,7 +151,7 @@ let mkStateRecord (vars, assertions) =
           (* then eprintf "Dropped assertions %A\n" assertions; *)
         then () ;
         List.rev refinedPayload
-    | (var, ty, _is_concrete) :: rest ->
+    | (var, ty, is_concrete) :: rest ->
         let knownVars = List.map ~f:(fun (v, _, _) -> v) refinedPayload in
         let boundVars =
           Set.add (Set.of_list (module String) knownVars) var
@@ -163,7 +163,8 @@ let mkStateRecord (vars, assertions) =
           List.partition_tf ~f:isRefinementClosed assertions
         in
         let newPayloadItem =
-          (var, ty, CFSMAnalysis.makeRefinementAttribute var ty closed)
+          let ty' = if is_concrete then ty else sprintf "erased %s" ty in
+          (var, ty', CFSMAnalysis.makeRefinementAttribute var ty' closed)
         in
         aux (rest, notClosed) (newPayloadItem :: refinedPayload)
   in

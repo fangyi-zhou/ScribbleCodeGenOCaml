@@ -23,7 +23,11 @@ let ensureStartsWithLowerCase (string : string) = String.uncapitalize string
 
 let writeTypeDefPreamble writer isFirst (name : string) content =
   let noeq =
-    if String.is_prefix name ~prefix:"Callbacks" then "noeq " else ""
+    if
+      String.is_prefix name ~prefix:"Callbacks"
+      || String.is_prefix name ~prefix:"state"
+    then "noeq "
+    else ""
     (* Yet another nasty HACK *)
   in
   let preamble = if isFirst then noeq ^ "type" else "and" in
@@ -50,10 +54,17 @@ let writeUnion writer isFirst name union =
   unindent writer
 
 let writeRecordItem writer (field, fieldType, refinement) =
+  let isErased = String.is_prefix fieldType ~prefix:"erased " in
   let refinedType =
-    match refinement with
-    | Some refinement -> sprintf "(%s : %s{%s})" field fieldType refinement
-    | None -> fieldType
+    if isErased then
+      let ty = String.chop_prefix_exn fieldType ~prefix:"erased " in
+      match refinement with
+      | Some refinement -> sprintf "erased (%s : %s{%s})" field ty refinement
+      | None -> fieldType
+    else
+      match refinement with
+      | Some refinement -> sprintf "(%s : %s{%s})" field fieldType refinement
+      | None -> fieldType
   in
   fprintf writer "%s : %s;\n" field refinedType
 
@@ -91,6 +102,7 @@ let generatePreamble writer _moduleName _protocol _localRole =
   (* if Poly.(!codeGenMode <> FStar) then writeln writer "open
      FluidTypes.Annotations" *)
   writeln writer "open FStar.All" ;
+  writeln writer "open FStar.Ghost" ;
   writeln writer "open FStar.Error" ;
   writeln writer ""
 
@@ -114,20 +126,26 @@ let assembleState writer (stateVarMap : stateVariableMap) recVarMap state var
     | None -> None
   in
   let vars =
-    Map.find_exn stateVarMap state |> fst |> List.map ~f:(fun (x, _, _) -> x)
+    Map.find_exn stateVarMap state
+    |> fst
+    |> List.map ~f:(fun (x, _, is_concrete) -> (x, is_concrete))
   in
   if List.is_empty vars then fprintf writer "()\n"
   else (
     fprintf writer "{\n" ;
     indent writer ;
     fprintf writer "_dum%s = ();\n" stateTy ;
-    let getVar v =
+    let getVar v is_concrete =
       match v with
       | v when String.equal v var -> v
       | v when Map.mem recExprs v -> Map.find_exn recExprs v
+      | _v when not is_concrete -> "(assume false; hide 0)"
       | v -> Option.value ~default:(fieldGet v prevStateTy) (getInitExpr v)
     in
-    List.iter ~f:(fun v -> fprintf writer "%s = %s;\n" v (getVar v)) vars ;
+    List.iter
+      ~f:(fun (v, is_concrete) ->
+        fprintf writer "%s = %s;\n" v (getVar v is_concrete))
+      vars ;
     unindent writer ;
     fprintf writer "}\n" )
 
