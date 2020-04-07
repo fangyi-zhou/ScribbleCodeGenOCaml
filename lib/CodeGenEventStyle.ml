@@ -143,7 +143,16 @@ let addTransitionCallback stateVarMap ~key:state ~data:transition callbacks =
       ~init:callbacks transition
 
 let mkStateRecord (vars, assertions) =
-  let rec aux (vars, assertions) refinedPayload =
+  let fix_irr irrs closed =
+    let f term =
+      List.fold ~init:term
+        ~f:(fun term irr ->
+          Substitution.substitute_term term irr (App (Var "reveal", Var irr)))
+        irrs
+    in
+    List.map ~f closed
+  in
+  let rec aux (vars, assertions, irrs) refinedPayload =
     match vars with
     | [] ->
         if
@@ -164,11 +173,16 @@ let mkStateRecord (vars, assertions) =
         in
         let newPayloadItem =
           let ty' = if is_concrete then ty else sprintf "erased %s" ty in
-          (var, ty', CFSMAnalysis.makeRefinementAttribute var ty' closed)
+          let closed = fix_irr irrs closed in
+          let refinement =
+            CFSMAnalysis.makeRefinementAttribute var ty' closed
+          in
+          (var, ty', refinement)
         in
-        aux (rest, notClosed) (newPayloadItem :: refinedPayload)
+        let irrs = if is_concrete then irrs else var :: irrs in
+        aux (rest, notClosed, irrs) (newPayloadItem :: refinedPayload)
   in
-  Record (aux (vars, assertions) [])
+  Record (aux (vars, assertions, []) [])
 
 let addStateRecords stateVarMap content =
   Map.fold

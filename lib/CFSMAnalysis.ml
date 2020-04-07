@@ -67,14 +67,12 @@ let attachRefinements refinements (vars, _) payloads binder =
       List.partition_tf ~f:isRefinementClosed refinements
     in
     let closed =
-      match binder with
-      | Some binder ->
-          let binder v =
-            let bound = binder v in
-            if is_irrelevant v then App (Var "reveal", bound) else bound
-          in
-          List.map ~f:(bindVars varsToBind binder) closed
-      | None -> closed
+      let binder = Option.value binder ~default:(fun x -> Var x) in
+      let binder v =
+        let bound = binder v in
+        if is_irrelevant v then App (Var "reveal", bound) else bound
+      in
+      List.map ~f:(bindVars varsToBind binder) closed
     in
     let newPayloadItem = (var, ty, makeRefinementAttribute var ty closed) in
     ((notClosed, newPayloadItem :: existingPayload), newPayloadItem)
