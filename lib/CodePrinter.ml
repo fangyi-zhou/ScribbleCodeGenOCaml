@@ -215,7 +215,7 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
                   | _ -> failwith "Unreachable"
                 in
                 fprintf writer "callbacks.%s st %s%s\n" callbackName
-                  (if isDummy var then "" else var)
+                  (if isDummy var then "()" else var)
                   semi_
             | _ -> failwith "TODO"
           in
