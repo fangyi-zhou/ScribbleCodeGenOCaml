@@ -20,8 +20,6 @@ let protocol = ref ""
 
 let role = ref ""
 
-let recursion = ref true
-
 let err msg = print_string msg ; print_string usage ; exit 1
 
 (* let handle_mode = function *)
@@ -40,14 +38,13 @@ let speclist =
   ; ( "--output"
     , Arg.Set_string CodePrinter.fileName
     , "Path to Output Filename" )
-  ; ("-o", Arg.Set_string CodePrinter.fileName, "Path to Output Filename")
-  ; ("--recursion", Arg.Set recursion, "Allow Refinements on Recursion") ]
+  ; ("-o", Arg.Set_string CodePrinter.fileName, "Path to Output Filename") ]
 
 let () =
   let run filename =
     if !protocol = "" then err "Error: Protocol not set" ;
     if !role = "" then err "Error: Role not set" ;
     if filename = "" then err "Error: File not set" ;
-    Lib.processScribbleOutput filename !protocol !role !recursion
+    Lib.processScribbleOutput filename !protocol !role
   in
   Arg.parse speclist run usage

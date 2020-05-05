@@ -92,26 +92,6 @@ let parseAction str : action * char seq =
       | _ -> (Send, str) )
   | _ -> failwith "invalid action"
 
-let parseOldAssertionString str : string * char seq =
-  match Sequence.hd str with
-  | Some '@' -> (
-      let str = Sequence.tl_eagerly_exn str in
-      match Sequence.hd_exn str with
-      | '\"' ->
-          let str = Sequence.tl_eagerly_exn str in
-          let assertion, rest = span (Char.( <> ) '\"') str in
-          let rest =
-            match Sequence.hd_exn rest with
-            | '\"' -> Sequence.tl_eagerly_exn rest
-            | _ -> failwith "unfinished assertion, missing '\"'"
-          in
-          (seqToString assertion, rest)
-      | _ -> failwith "invalid assertion, missing '\"'" )
-  | Some _ -> failwithf "unknown assertion %s" (seqToString str) ()
-  | None ->
-      (* No assertion *)
-      ("", str)
-
 let fixAssertionDiscrepancy assertions =
   let assertions =
     String.substr_replace_all assertions ~pattern:"True" ~with_:"true"
@@ -163,15 +143,6 @@ let parseDotLabelPrefix (str : string) :
   let label, str = parseLabel str in
   let irrpayload, payload, str = parsePayload str in
   (partner, action, label, irrpayload, payload, str)
-
-let parseOldDotLabel (str : string) =
-  let partner, action, label, irrpayload, payload, str =
-    parseDotLabelPrefix str
-  in
-  let assertion, str = parseOldAssertionString str in
-  if not (Sequence.is_empty str) then
-    eprintf "Unexpected %s\n" (seqToString str) ;
-  (partner, action, label, irrpayload, payload, assertion, [])
 
 let parseNewDotLabel (str : string) =
   let partner, action, label, irrpayload, payload, str =

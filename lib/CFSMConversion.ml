@@ -6,8 +6,6 @@ type attributes = string smap
 
 type graphData = {nodes: attributes smap; edges: attributes list ssmap}
 
-let newSyntax = ref false
-
 let newTransitionMap = Map.empty
 
 let parse_term input =
@@ -46,8 +44,7 @@ let parseTransition fromState toState label : transition =
       , payload
       , assertionString
       , recVarExpr ) =
-    if not !newSyntax then Parse.parseOldDotLabel label
-    else Parse.parseNewDotLabel label
+    Parse.parseNewDotLabel label
   in
   let recVarExpr = List.map ~f:parse_term recVarExpr in
   { fromState
@@ -76,16 +73,13 @@ let convertEdge ~key:((fromState, toState) : SS.t) ~(data : attributes list)
 let convertNode ~key ~(data : attributes) recVarMap =
   let state = key in
   let attributes = data in
-  if not !newSyntax then recVarMap
-  else
-    let state = Int.of_string state in
-    let label = Map.find_exn attributes "label" in
-    let recvars, assertion = Parse.parseRecVarEntry label in
-    let assertion = parseAssertionAndChunk assertion in
-    Map.add_exn ~key:state ~data:(recvars, assertion) recVarMap
+  let state = Int.of_string state in
+  let label = Map.find_exn attributes "label" in
+  let recvars, assertion = Parse.parseRecVarEntry label in
+  let assertion = parseAssertionAndChunk assertion in
+  Map.add_exn ~key:state ~data:(recvars, assertion) recVarMap
 
-let convert (graph : graphData) (recursiveRefinement : bool) : cfsm =
-  newSyntax := recursiveRefinement ;
+let convert (graph : graphData) : cfsm =
   let edges = graph.edges in
   let nodes = graph.nodes in
   let states =
