@@ -136,11 +136,10 @@ let parseNewDotLabel (str : string) =
     eprintf "Unexpected %s\n" (seqToString str) ;
   (partner, action, label, irrpayload, payload, assertion, stateVars)
 
-let parseRecVarEntry (str : string) =
-  let str = str |> String.to_list |> Sequence.of_list in
-  let str = Sequence.drop_while ~f:(Char.( <> ) '<') str in
-  match Sequence.hd str with
-  | Some '<' ->
+let parseRecVarEntriesWithin begin_ end_ (str : char seq) :
+    (string * string) list * char seq =
+  match Sequence.hd_exn str with
+  | c when Char.equal c begin_ ->
       let parseSingle str =
         let var, rest = span (Char.( <> ) ':') str in
         match Sequence.hd rest with
@@ -155,20 +154,28 @@ let parseRecVarEntry (str : string) =
       in
       let rec aux str acc =
         let str = skipSpaces str in
-        let expr, rest = span (fun c -> Char.(c <> '>' && c <> ',')) str in
+        let expr, rest = span (fun c -> Char.(c <> end_ && c <> ',')) str in
         match Sequence.hd rest with
-        | Some '>' ->
+        | Some c when Char.equal c end_ ->
             let acc =
               if Sequence.is_empty expr then acc else parseSingle expr :: acc
             in
-            let assertions =
-              Sequence.tl_eagerly_exn rest
-              |> skipSpaces |> seqToString |> fixAssertionDiscrepancy
-            in
-            ([], List.rev acc, assertions)
+            let rest = Sequence.tl_eagerly_exn rest in
+            (List.rev acc, rest)
         | Some ',' ->
             aux (Sequence.tl_eagerly_exn rest) (parseSingle expr :: acc)
         | _ -> failwith "Unexpected recursion expression"
       in
       aux (Sequence.tl_eagerly_exn str) []
-  | _ -> failwith "invalid recursion variable list, missing '<'"
+  | _ -> failwith (sprintf "Expected %c" begin_)
+
+let parseRecVarDef (str : string) =
+  let str = str |> String.to_list |> Sequence.of_list in
+  let rest = Sequence.drop_while ~f:(Char.( <> ) '<') str in
+  let recVars, rest = parseRecVarEntriesWithin '<' '>' rest in
+  let irrrecVars, rest = parseRecVarEntriesWithin '[' ']' rest in
+  let assertions =
+    rest |> skipSpaces |> seqToString |> fixAssertionDiscrepancy
+  in
+  let irrrecVars = List.map ~f:fst irrrecVars in
+  (recVars, irrrecVars, assertions)

@@ -75,7 +75,7 @@ let convertNode ~key ~(data : attributes) recVarMap =
   let attributes = data in
   let state = Int.of_string state in
   let label = Map.find_exn attributes "label" in
-  let irrrecvars, recvars, assertion = Parse.parseRecVarEntry label in
+  let recvars, irrrecvars, assertion = Parse.parseRecVarDef label in
   let assertion = parseAssertionAndChunk assertion in
   Map.add_exn ~key:state ~data:(irrrecvars, recvars, assertion) recVarMap
 
