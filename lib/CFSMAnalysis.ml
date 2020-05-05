@@ -91,7 +91,7 @@ let constructVariableMap (cfsm : cfsm) : stateVariableMap =
     else
       let recVar, recAssertion =
         match Map.find recVars state with
-        | Some (recVar, recAssertion) ->
+        | Some (_, recVar, recAssertion) ->
             ( List.map ~f:(fun (v, _) -> (v, "int", true)) recVar
             , recAssertion )
         | None -> ([], [])

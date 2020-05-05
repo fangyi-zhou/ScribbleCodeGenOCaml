@@ -75,9 +75,9 @@ let convertNode ~key ~(data : attributes) recVarMap =
   let attributes = data in
   let state = Int.of_string state in
   let label = Map.find_exn attributes "label" in
-  let recvars, assertion = Parse.parseRecVarEntry label in
+  let irrrecvars, recvars, assertion = Parse.parseRecVarEntry label in
   let assertion = parseAssertionAndChunk assertion in
-  Map.add_exn ~key:state ~data:(recvars, assertion) recVarMap
+  Map.add_exn ~key:state ~data:(irrrecvars, recvars, assertion) recVarMap
 
 let convert (graph : graphData) : cfsm =
   let edges = graph.edges in

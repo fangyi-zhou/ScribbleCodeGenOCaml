@@ -40,38 +40,20 @@ let rec parsePayloadItems str : payload * char seq =
         failwithf "unexpected item in payloads %s" (seqToString rest) ()
     | None -> ([payloadItem], rest)
 
-let parsePayload str : payload * payload * char seq =
-  let parseRelPayload str =
-    let str = Sequence.tl_eagerly_exn str in
-    let items, rest = span (Char.( <> ) ')') str in
-    let payload, rest' = parsePayloadItems items in
-    if not (Sequence.is_empty rest') then
-      eprintf "LeftOver Payloads %s\n" (seqToString rest') ;
-    let rest =
-      match Sequence.hd_exn rest with
-      | ')' -> Sequence.tl_eagerly_exn rest
-      | _ -> failwith "unfinished payload, missing ')'"
-    in
-    (payload, rest)
-  in
+let parsePayloadWithin begin_ end_ str : payload * char seq =
   match Sequence.hd_exn str with
-  | '[' ->
-      (* Irrelevant Vars *)
+  | c when Char.equal begin_ c ->
       let str = Sequence.tl_eagerly_exn str in
-      let items, rest = span (Char.( <> ) ']') str in
-      let irrpayload, rest' = parsePayloadItems items in
+      let items, rest = span (Char.( <> ) end_) str in
+      let payload, rest' = parsePayloadItems items in
       if not (Sequence.is_empty rest') then
         eprintf "LeftOver Payloads %s\n" (seqToString rest') ;
       let rest =
         match Sequence.hd_exn rest with
-        | ']' -> Sequence.tl_eagerly_exn rest
-        | _ -> failwith "unfinished payload, missing ']'"
+        | c when Char.equal end_ c -> Sequence.tl_eagerly_exn rest
+        | _ -> failwith (sprintf "unfinished payload, missing '%c'" end_)
       in
-      let relpayload, rest = parseRelPayload rest in
-      (irrpayload, relpayload, rest)
-  | '(' ->
-      let relpayload, rest = parseRelPayload str in
-      ([], relpayload, rest)
+      (payload, rest)
   | _ -> failwith "invalid payload"
 
 let parseRole str : role * char seq =
@@ -134,21 +116,20 @@ let parseRecVars str : char seq list * char seq =
       aux (Sequence.tl_eagerly_exn str) []
   | _ -> failwith "invalid recursion variable list, missing '<'"
 
-let parseDotLabelPrefix (str : string) :
-    role * action * label * payload * payload * char seq =
-  (* let str = str.ToCharArray() |> Sequence.ofArray in *)
+let parseNewDotLabel (str : string) =
   let str = str |> String.to_list |> Sequence.of_list in
   let partner, str = parseRole str in
   let action, str = parseAction str in
   let label, str = parseLabel str in
-  let irrpayload, payload, str = parsePayload str in
-  (partner, action, label, irrpayload, payload, str)
-
-let parseNewDotLabel (str : string) =
-  let partner, action, label, irrpayload, payload, str =
-    parseDotLabelPrefix str
+  let payload, str = parsePayloadWithin '(' ')' str in
+  let assertion1, str = parseNewAssertionString str in
+  let irrpayload, str = parsePayloadWithin '[' ']' str in
+  let assertion2, str = parseNewAssertionString str in
+  let assertion =
+    if String.equal assertion1 "" then assertion2
+    else if String.equal assertion2 "" then assertion1
+    else sprintf "(%s) && (%s)" assertion1 assertion2
   in
-  let assertion, str = parseNewAssertionString str in
   let stateVars, str = parseRecVars str in
   let stateVars = List.map ~f:seqToString stateVars in
   if not (Sequence.is_empty str) then
@@ -184,7 +165,7 @@ let parseRecVarEntry (str : string) =
               Sequence.tl_eagerly_exn rest
               |> skipSpaces |> seqToString |> fixAssertionDiscrepancy
             in
-            (List.rev acc, assertions)
+            ([], List.rev acc, assertions)
         | Some ',' ->
             aux (Sequence.tl_eagerly_exn rest) (parseSingle expr :: acc)
         | _ -> failwith "Unexpected recursion expression"

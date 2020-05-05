@@ -120,7 +120,7 @@ let assembleState writer (stateVarMap : stateVariableMap) recVarMap state var
   let recExprs = Map.of_alist_exn (module String) recExprs in
   let getInitExpr v =
     match Map.find recVarMap state with
-    | Some (vars, _) ->
+    | Some (_, vars, _) ->
         let vars = Map.of_alist_exn (module String) vars in
         Map.find vars v
     | None -> None
@@ -226,7 +226,7 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
           in
           let recVars =
             Map.find recVarMap toState
-            |> Option.map ~f:(fun (x, _) -> List.map ~f:fst x)
+            |> Option.map ~f:(fun (_, x, _) -> List.map ~f:fst x)
             |> Option.value ~default:[]
           in
           let bindVar v =
@@ -290,7 +290,7 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
               let prevStateName = sprintf "state%d" state in
               let recVars =
                 Map.find recVarMap toState
-                |> Option.map ~f:(fun (x, _) -> List.map ~f:fst x)
+                |> Option.map ~f:(fun (_, x, _) -> List.map ~f:fst x)
                 |> Option.value ~default:[]
               in
               let bindVar v =

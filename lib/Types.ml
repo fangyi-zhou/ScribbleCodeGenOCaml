@@ -84,7 +84,8 @@ type 'a stateMap = 'a Map.M(Int).t
 type transitionMap = transition list stateMap
 
 type recVarMap =
-  ((variable * (* init expr *) string) list * assertion) stateMap
+  (variable list * (variable * (* init expr *) string) list * assertion)
+  stateMap
 
 type cfsm =
   (* init *)
