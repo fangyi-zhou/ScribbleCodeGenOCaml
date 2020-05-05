@@ -4,7 +4,7 @@ open ScribbleCodeGen
 let usage =
   "\nUSAGE: " ^ Sys.argv.(0)
   ^ " [--help] --protocol <string> --role <string> [--output <string>] \
-     [--recursion] <string>\n\n\
+     [--custom-label] <string>\n\n\
      FILENAME:\n\n\
     \    <string>              Path to Scribble Output\n\n\
      OPTIONS:\n\n\
@@ -12,13 +12,14 @@ let usage =
     \    --role <string>       Name of Local Role in the Protocol\n\
      Style\n\
     \    --output, -o <string> Path to Output Filename\n\
-    \    --recursion           Allow Refinements on Recursion (Scribble \
-     dev-assrt)\n\
+    \    --custom-label        Allow Custom Labels Serialisation\n\
     \    --help                display this list of options.\n"
 
 let protocol = ref ""
 
 let role = ref ""
+
+let custom_label = ref false
 
 let err msg = print_string msg ; print_string usage ; exit 1
 
@@ -38,13 +39,16 @@ let speclist =
   ; ( "--output"
     , Arg.Set_string CodePrinter.fileName
     , "Path to Output Filename" )
-  ; ("-o", Arg.Set_string CodePrinter.fileName, "Path to Output Filename") ]
+  ; ("-o", Arg.Set_string CodePrinter.fileName, "Path to Output Filename")
+  ; ( "--custom-label"
+    , Arg.Set custom_label
+    , "Allow Custom Labels Serialisation" ) ]
 
 let () =
   let run filename =
     if !protocol = "" then err "Error: Protocol not set" ;
     if !role = "" then err "Error: Role not set" ;
     if filename = "" then err "Error: File not set" ;
-    Lib.processScribbleOutput filename !protocol !role
+    Lib.processScribbleOutput filename !protocol !role !custom_label
   in
   Arg.parse speclist run usage

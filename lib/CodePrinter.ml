@@ -149,7 +149,8 @@ let assembleState writer (stateVarMap : stateVariableMap) recVarMap state var
     unindent writer ;
     fprintf writer "}\n" )
 
-let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
+let generateRunState writer (cfsm : cfsm) stateVarMap customLabel isInit
+    state =
   let in_ = " in" in
   let in__ writer = writeln writer "in" in
   let semi_ = ";" in
@@ -187,8 +188,14 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
           let () =
             match a with
             | Send ->
-                fprintf writer "%scomms.send_label %s %s%s\n" doBang r l
-                  semi_ ;
+                let () =
+                  if customLabel then
+                    fprintf writer "%scomms.send_label %s %s%s\n" doBang r l
+                      semi_
+                  else
+                    fprintf writer "%scomms.send_string %s \"%s\"%s\n" doBang
+                      r l semi_
+                in
                 let callbackName = sprintf "state%dOnsend%s" state l in
                 fprintf writer "let %s = callbacks.%s st%s\n" var
                   callbackName in_ ;
@@ -282,7 +289,14 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
               (* let () = if Poly.(!codeGenMode = FStar) then *)
               fprintf writer "| Choice%d%s %s ->\n" state label var ;
               (* else fprintf writer "| State%dChoice.%s ->\n" state label in *)
-              fprintf writer "%scomms.send_label %s %s%s\n" doBang r l semi_ ;
+              let () =
+                if customLabel then
+                  fprintf writer "%scomms.send_label %s %s%s\n" doBang r l
+                    semi_
+                else
+                  fprintf writer "%scomms.send_string %s \"%s\"%s\n" doBang r
+                    l semi_
+              in
               fprintf writer "%scomms.send_%s %s %s%s\n" doBang ty r var
                 semi_ ;
               let stateTyName = sprintf "%s%d" stateTy toState in
@@ -325,13 +339,22 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
         | {action= Receive; partner= role; _} ->
             let generateCase transition =
               let label = transition.label in
-              fprintf writer "| %s ->\n" label ;
+              let () =
+                if customLabel then fprintf writer "| %s ->\n" label
+                else fprintf writer "| \"%s\" ->\n" label
+              in
               indent writer ;
               generateForTransition transition None ;
               unindent writer
             in
-            fprintf writer "let%s label = comms.recv_label %s ()%s\n" bang
-              role in_ ;
+            let () =
+              if customLabel then
+                fprintf writer "let%s label = comms.recv_label %s ()%s\n"
+                  bang role in_
+              else
+                fprintf writer "let%s label = comms.recv_string %s ()%s\n"
+                  bang role in_
+            in
             fprintf writer "match label with\n" ;
             indent writer ;
             List.iter ~f:generateCase stateTransition ;
@@ -344,7 +367,7 @@ let generateRunState writer (cfsm : cfsm) stateVarMap isInit state =
      writer "}\n" ) ; *)
   unindent writer ; false
 
-let generateRuntimeCode writer (cfsm : cfsm) stateVarMap =
+let generateRuntimeCode writer (cfsm : cfsm) stateVarMap customLabel =
   let initState, _, _, recVarMap = cfsm in
   let states = allStates cfsm in
   let in__ writer = writeln writer "in" in
@@ -352,7 +375,9 @@ let generateRuntimeCode writer (cfsm : cfsm) stateVarMap =
   let stateName = sprintf "%s%d" stateTy initState in
   indent writer ;
   (* printfn "%A" cfsm *)
-  List.fold ~f:(generateRunState writer cfsm stateVarMap) ~init:true states
+  List.fold
+    ~f:(generateRunState writer cfsm stateVarMap customLabel)
+    ~init:true states
   |> ignore ;
   in__ writer ;
   fprintf writer "let initState : %s =\n" stateName ;
@@ -363,7 +388,7 @@ let generateRuntimeCode writer (cfsm : cfsm) stateVarMap =
   fprintf writer "runState%d initState\n" initState ;
   unindent writer
 
-let writeCommunicationDef writer =
+let writeCommunicationDef writer customLabel =
   let noeq = "noeq " in
   let comm = "connection" in
   let role = "role" in
@@ -374,27 +399,30 @@ let writeCommunicationDef writer =
   let mkRecv name =
     sprintf "recv_%s : %s -> %s -> %s;\n" name role "unit" (mkReturn name)
   in
-  let types = ["int"; "string"; "unit"; "label"] in
+  let types =
+    if customLabel then ["int"; "string"; "unit"; "label"]
+    else ["int"; "string"; "unit"]
+  in
   fprintf writer "%stype %s = {\n" noeq comm ;
   List.iter
     ~f:(fun ty -> fprintf writer "%s%s" (mkSend ty) (mkRecv ty))
     types ;
   fprintf writer "}\n"
 
-let generateCode (cfsm : cfsm) protocol localRole =
+let generateCode (cfsm : cfsm) protocol localRole customLabel =
   let file = Out_channel.create !fileName in
   let writer = Caml.Format.formatter_of_out_channel file in
   let stateVarMap = CFSMAnalysis.constructVariableMap cfsm in
   let stateVarMap = cleanUpVarMap stateVarMap in
   generatePreamble writer !moduleName protocol localRole ;
-  let content = generateCodeContent cfsm stateVarMap localRole in
+  let content = generateCodeContent cfsm stateVarMap localRole customLabel in
   List.iter ~f:(writeContents writer) content ;
-  writeCommunicationDef writer ;
+  writeCommunicationDef writer customLabel ;
   let () =
     fprintf writer
       "let run (callbacks : callbacks%s) (comms : connection) : ML unit =\n"
       localRole ;
-    generateRuntimeCode writer cfsm stateVarMap
+    generateRuntimeCode writer cfsm stateVarMap customLabel
   in
   Caml.Format.pp_print_flush writer () ;
   Out_channel.close file

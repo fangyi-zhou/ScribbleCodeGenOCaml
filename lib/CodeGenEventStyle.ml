@@ -261,7 +261,7 @@ let getLabels transitions =
   in
   Map.singleton (module String) "label" labels
 
-let generateCodeContentEventStyleApi cfsm stateVarMap localRole =
+let generateCodeContentEventStyleApi cfsm stateVarMap localRole customLabel =
   let _, _, transitions, _ = cfsm in
   let states = allStates cfsm in
   let roles = allRoles cfsm in
@@ -270,7 +270,6 @@ let generateCodeContentEventStyleApi cfsm stateVarMap localRole =
     addStateRecords stateVarMap (Map.empty (module String))
   in
   let roles = addRole (Map.empty (module String)) roles in
-  let labels = getLabels transitions in
   let choices =
     Map.fold
       ~f:(addInternalChoices stateVarMap)
@@ -286,4 +285,7 @@ let generateCodeContentEventStyleApi cfsm stateVarMap localRole =
       (module String)
       [("Callbacks" ^ localRole, Record callbacks)]
   in
-  [roles; labels; stateRecords; choices; callbacks]
+  if customLabel then
+    let labels = getLabels transitions in
+    [roles; labels; stateRecords; choices; callbacks]
+  else [roles; stateRecords; choices; callbacks]
